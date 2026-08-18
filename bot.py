@@ -98,6 +98,45 @@ def download_video_sync(url: str, output_template: str, quality: str) -> dict:
         info = ydl.extract_info(url, download=True)
         return ydl.prepare_filename(info), info
 
+def fetch_video_info_sync(url: str) -> dict:
+    ydl_opts = {
+        'quiet': True,
+        'no_warnings': True,
+        'nocheckcertificate': True,
+        'extractor_args': {
+            'youtube': {
+                'player_client': ['android', 'ios'],
+            }
+        },
+    }
+    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+        return ydl.extract_info(url, download=False)
+
+def format_size(bytes_val: int) -> str:
+    if not bytes_val: return "? MB"
+    return f"{bytes_val / (1024 * 1024):.1f} MB"
+
+def get_sizes(info: dict) -> tuple:
+    formats = info.get('formats', [])
+    audios = [f for f in formats if f.get('vcodec') == 'none' and (f.get('filesize') or f.get('filesize_approx'))]
+    aud_size = 0
+    if audios:
+        best_audio = max(audios, key=lambda x: x.get('filesize') or x.get('filesize_approx') or 0)
+        aud_size = best_audio.get('filesize') or best_audio.get('filesize_approx') or 0
+
+    def get_vid_size(max_h):
+        vids = [f for f in formats if f.get('height') and f.get('height') <= max_h and f.get('vcodec') != 'none']
+        if not vids: return 0
+        best_vid = max(vids, key=lambda x: (x.get('height', 0), x.get('filesize') or x.get('filesize_approx') or 0))
+        return best_vid.get('filesize') or best_vid.get('filesize_approx') or 0
+
+    return (
+        format_size(get_vid_size(1080) + aud_size),
+        format_size(get_vid_size(720) + aud_size),
+        format_size(get_vid_size(480) + aud_size),
+        format_size(aud_size)
+    )
+
 @app.on_message(filters.text & ~filters.command(["start", "help"]))
 async def handle_url(client: Client, message: Message):
     url_match = URL_REGEX.search(message.text)
@@ -106,23 +145,34 @@ async def handle_url(client: Client, message: Message):
         return
 
     url = url_match.group(0)
-    
-    # Store URL in memory
     user_requests[message.id] = url
     
-    # Send Inline Keyboard
-    keyboard = InlineKeyboardMarkup([
-        [
-            InlineKeyboardButton("🎥 1080p", callback_data=f"dl_1080p_{message.id}"),
-            InlineKeyboardButton("🎥 720p", callback_data=f"dl_720p_{message.id}")
-        ],
-        [
-            InlineKeyboardButton("🎥 480p", callback_data=f"dl_480p_{message.id}"),
-            InlineKeyboardButton("🎵 Audio", callback_data=f"dl_audio_{message.id}")
-        ]
-    ])
+    status_msg = await message.reply_text("🔄 Fetching video sizes...")
     
-    await message.reply_text("Select format & quality to download:", reply_markup=keyboard)
+    try:
+        loop = asyncio.get_event_loop()
+        info = await loop.run_in_executor(None, partial(fetch_video_info_sync, url))
+        
+        s_1080, s_720, s_480, s_audio = get_sizes(info)
+        
+        keyboard = InlineKeyboardMarkup([
+            [
+                InlineKeyboardButton(f"🎥 1080p ({s_1080})", callback_data=f"dl_1080p_{message.id}"),
+                InlineKeyboardButton(f"🎥 720p ({s_720})", callback_data=f"dl_720p_{message.id}")
+            ],
+            [
+                InlineKeyboardButton(f"🎥 480p ({s_480})", callback_data=f"dl_480p_{message.id}"),
+                InlineKeyboardButton(f"🎵 Audio ({s_audio})", callback_data=f"dl_audio_{message.id}")
+            ]
+        ])
+        
+        await status_msg.edit_text("Select format & quality to download:", reply_markup=keyboard)
+    except Exception as e:
+        logger.error(f"Error fetching info: {e}")
+        await status_msg.edit_text(f"❌ Could not fetch sizes, but you can still try downloading.", reply_markup=InlineKeyboardMarkup([
+            [InlineKeyboardButton("🎥 1080p", callback_data=f"dl_1080p_{message.id}"), InlineKeyboardButton("🎥 720p", callback_data=f"dl_720p_{message.id}")],
+            [InlineKeyboardButton("🎥 480p", callback_data=f"dl_480p_{message.id}"), InlineKeyboardButton("🎵 Audio", callback_data=f"dl_audio_{message.id}")]
+        ]))
 
 
 @app.on_callback_query(filters.regex(r"^dl_"))
