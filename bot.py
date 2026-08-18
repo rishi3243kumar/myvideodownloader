@@ -113,7 +113,7 @@ def fetch_video_info_sync(url: str) -> dict:
         return ydl.extract_info(url, download=False)
 
 def format_size(bytes_val: float) -> str:
-    if not bytes_val or bytes_val <= 0: return "? MB"
+    if not bytes_val or bytes_val <= 0: return "Unknown"
     return f"{bytes_val / (1024 * 1024):.1f} MB"
 
 def get_sizes(info: dict) -> tuple:
