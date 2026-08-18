@@ -86,6 +86,11 @@ def download_video_sync(url: str, output_template: str, quality: str) -> dict:
         'no_warnings': True,
         'nocheckcertificate': True,
         'ffmpeg_location': ffmpeg_path,
+        'extractor_args': {
+            'youtube': {
+                'player_client': ['android', 'ios'],
+            }
+        }, # Permanent Bypass for YouTube bot checks without cookies
         'max_filesize': 500 * 1024 * 1024, # 500MB max limit
     }
     
