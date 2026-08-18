@@ -112,23 +112,35 @@ def fetch_video_info_sync(url: str) -> dict:
     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
         return ydl.extract_info(url, download=False)
 
-def format_size(bytes_val: int) -> str:
-    if not bytes_val: return "? MB"
+def format_size(bytes_val: float) -> str:
+    if not bytes_val or bytes_val <= 0: return "? MB"
     return f"{bytes_val / (1024 * 1024):.1f} MB"
 
 def get_sizes(info: dict) -> tuple:
-    formats = info.get('formats', [])
-    audios = [f for f in formats if f.get('vcodec') == 'none' and (f.get('filesize') or f.get('filesize_approx'))]
+    formats = info.get('formats')
+    duration = info.get('duration', 0)
+    
+    def get_size_for_dict(f):
+        size = f.get('filesize') or f.get('filesize_approx')
+        if not size and f.get('tbr') and duration:
+            size = f.get('tbr') * 1000 * duration / 8
+        return float(size or 0)
+
+    if not formats:
+        s = get_size_for_dict(info)
+        return (format_size(s), format_size(s), format_size(s), format_size(s))
+
+    audios = [f for f in formats if f.get('vcodec') == 'none' and get_size_for_dict(f) > 0]
     aud_size = 0
     if audios:
-        best_audio = max(audios, key=lambda x: x.get('filesize') or x.get('filesize_approx') or 0)
-        aud_size = best_audio.get('filesize') or best_audio.get('filesize_approx') or 0
+        best_audio = max(audios, key=lambda x: get_size_for_dict(x))
+        aud_size = get_size_for_dict(best_audio)
 
     def get_vid_size(max_h):
         vids = [f for f in formats if f.get('height') and f.get('height') <= max_h and f.get('vcodec') != 'none']
         if not vids: return 0
-        best_vid = max(vids, key=lambda x: (x.get('height', 0), x.get('filesize') or x.get('filesize_approx') or 0))
-        return best_vid.get('filesize') or best_vid.get('filesize_approx') or 0
+        best_vid = max(vids, key=lambda x: (x.get('height', 0), get_size_for_dict(x)))
+        return get_size_for_dict(best_vid)
 
     return (
         format_size(get_vid_size(1080) + aud_size),
