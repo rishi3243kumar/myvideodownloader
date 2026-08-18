@@ -15,6 +15,8 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+# Bot version - v1.1
+
 # Environment Variables for Configuration
 API_ID = os.environ.get("API_ID")
 API_HASH = os.environ.get("API_HASH")
