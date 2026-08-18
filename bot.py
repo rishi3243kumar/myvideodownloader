@@ -18,11 +18,18 @@ logger = logging.getLogger(__name__)
 # Bot version - v1.1
 
 # Environment Variables for Configuration
+# Debug: print all env vars to diagnose Railway injection
+logger.info(f"All env keys: {list(os.environ.keys())}")
+logger.info(f"API_ID present: {'API_ID' in os.environ}")
+logger.info(f"API_HASH present: {'API_HASH' in os.environ}")
+logger.info(f"BOT_TOKEN present: {'BOT_TOKEN' in os.environ}")
+
 API_ID = os.environ.get("API_ID")
 API_HASH = os.environ.get("API_HASH")
 BOT_TOKEN = os.environ.get("BOT_TOKEN")
 
 if not all([API_ID, API_HASH, BOT_TOKEN]):
+    logger.error(f"Missing vars! API_ID={API_ID}, API_HASH={'set' if API_HASH else None}, BOT_TOKEN={'set' if BOT_TOKEN else None}")
     raise ValueError("API_ID, API_HASH, and BOT_TOKEN must be set in environment variables.")
 
 # Initialize Pyrogram Client
