@@ -68,13 +68,13 @@ def download_video_sync(url: str, output_template: str, quality: str) -> dict:
     
     format_selector = 'best'
     if quality == '1080p':
-        format_selector = 'bestvideo[height<=1080][ext=mp4]+bestaudio[ext=m4a]/best[height<=1080]/best'
+        format_selector = 'bestvideo[height<=1080]+bestaudio/best[height<=1080]/best'
     elif quality == '720p':
-        format_selector = 'bestvideo[height<=720][ext=mp4]+bestaudio[ext=m4a]/best[height<=720]/best'
+        format_selector = 'bestvideo[height<=720]+bestaudio/best[height<=720]/best'
     elif quality == '480p':
-        format_selector = 'bestvideo[height<=480][ext=mp4]+bestaudio[ext=m4a]/best[height<=480]/best'
+        format_selector = 'bestvideo[height<=480]+bestaudio/best[height<=480]/best'
     elif quality == 'audio':
-        format_selector = 'bestaudio[ext=m4a]/bestaudio/best'
+        format_selector = 'bestaudio/best'
 
     # On Linux (cloud), ffmpeg is in PATH. On Windows (local), use local exe.
     ffmpeg_path = os.path.abspath('ffmpeg-master-latest-win64-gpl/bin/ffmpeg.exe') if os.path.exists('ffmpeg-master-latest-win64-gpl/bin/ffmpeg.exe') else 'ffmpeg'
@@ -86,6 +86,7 @@ def download_video_sync(url: str, output_template: str, quality: str) -> dict:
         'no_warnings': True,
         'nocheckcertificate': True,
         'ffmpeg_location': ffmpeg_path,
+        'merge_output_format': 'mp4',
         'extractor_args': {
             'youtube': {
                 'player_client': ['android', 'ios'],
