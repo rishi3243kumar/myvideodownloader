@@ -1,0 +1,8 @@
+.env*
+AGENTS.md
+*.session
+*.session-journal
+__pycache__/
+ffmpeg.exe
+ffmpeg-master-latest-win64-gpl/
+scratch/
